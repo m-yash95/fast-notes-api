@@ -107,6 +107,48 @@ def delete_user(current_user: models.User = Depends(get_current_user), db: Sessi
     db.commit()
     return None # 204 No Content doesn't return a body
 
+# --- NOTE ENDPOINTS ---
+
+@app.post("/notes/", response_model=schemas.NoteResponse, status_code=status.HTTP_201_CREATED)
+def create_note(note: schemas.NoteCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    new_note = models.Note(**note.model_dump(), owner_id=current_user.id)
+    db.add(new_note)
+    db.commit()
+    db.refresh(new_note)
+    return new_note
+
+@app.get("/notes/", response_model=list[schemas.NoteResponse])
+def get_notes(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return db.query(models.Note).filter(models.Note.owner_id == current_user.id).all()
+
+@app.get("/notes/{note_id}", response_model=schemas.NoteResponse)
+def get_note(note_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    note = db.query(models.Note).filter(models.Note.id == note_id, models.Note.owner_id == current_user.id).first()
+    if not note:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+    return note
+
+@app.patch("/notes/{note_id}", response_model=schemas.NoteResponse)
+def update_note(note_id: int, payload: schemas.NoteUpdate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    note = db.query(models.Note).filter(models.Note.id == note_id, models.Note.owner_id == current_user.id).first()
+    if not note:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(note, field, value)
+    db.commit()
+    db.refresh(note)
+    return note
+
+@app.delete("/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_note(note_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    note = db.query(models.Note).filter(models.Note.id == note_id, models.Note.owner_id == current_user.id).first()
+    if not note:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+    db.delete(note)
+    db.commit()
+    return None
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Fast Notes API!"}

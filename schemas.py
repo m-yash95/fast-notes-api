@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
+from typing import Optional
 
 # Base schema containing common attributes
 class UserBase(BaseModel):
@@ -16,6 +17,26 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True  # Allows Pydantic to read SQLAlchemy models
+
+# --- NOTE SCHEMAS ---
+class NoteBase(BaseModel):
+    title: str
+    content: str
+
+class NoteCreate(NoteBase):
+    pass
+
+class NoteUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+
+class NoteResponse(NoteBase):
+    id: int
+    owner_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 # --- TOKEN SCHEMAS ---
 class Token(BaseModel):
